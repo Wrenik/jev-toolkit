@@ -7,7 +7,7 @@ Method: full read of the code, then each suspected problem was checked one of th
 - **Doc-backed**: the Claude Code mod API types say the behaviour happens; not triggered live.
 - **Code-evident**: follows directly from the code; not triggered live.
 
-Nothing in this report has been fixed yet.
+**Status (later the same day): all findings handled — see "Fix status" at the end.**
 
 ## Summary
 
@@ -121,3 +121,29 @@ Fix: delete the `jev-spike` mod (planned once the router works, and it does).
 4. L1–L3 server input hardening.
 5. M4 restart/version, M7 remove spike, L4–L6.
 6. M5 portability and M6 mod tests, before publishing on GitHub.
+
+## Fix status
+
+| ID | Status | How | Test |
+|---|---|---|---|
+| H1, L10 | Fixed | `tier_of_model` only manages plain haiku/sonnet/opus; Fable, `best`, `opusplan` and `[1m]` variants get `manages_current: false` and the mod only suggests (status line, no toast) | `test_tier_of_model_is_strict`, `test_unmanaged_model_is_suggestion_only`, mod test H1; live: Fable prompt → "suggestion only" |
+| H2 | Fixed (seatbelt, not a guarantee) | `jev_router/redact.py` removes private keys, Anthropic/OpenAI/GitHub/AWS/Slack/Google keys, JWTs, bearer tokens, URL passwords and `secret=value` assignments before the judge sees the prompt; the kinds found are logged, never the values; `/jev` states that prompts go to TypeSafe | `test_h2_secrets_never_reach_the_judge`, `test_redact_*`; live: GitHub token redacted, absent from the log |
+| H3 | Fixed | Never `light` above 100k context tokens, cache warm or cold | `test_no_haiku_above_100k_even_with_cold_cache` |
+| M1 | Fixed | The mod tracks the effort it knows (`effortLevel` setting, then every `/effort` run) and switches effort alone when only that differs | logic tests M1, mod test (runs `/model opus` then `/effort high`) |
+| M2 | Fixed | `turn.start`/`turn.complete` track whether Claude is working; a prompt sent mid-turn is never dropped, only advised | logic test M2 |
+| M3 | Fixed | Prompts with `@mentions` are advised, not dropped and resent | logic + mod test M3 |
+| M4 | Fixed | `/health` reports `code_version` and `stale`; `/jev` shows it; `/jev restart` asks the server to shut down (`POST /shutdown`) and starts a fresh one | `test_m4_health_reports_code_version_and_shutdown_works` |
+| M5 | Fixed | No hard-coded paths: `userConfig.toolkitPath`, else the `JEV_TOOLKIT` environment variable; the venv's Python is picked per platform | validated manifest; set `JEV_TOOLKIT` in user settings on this machine |
+| M6 | Fixed | `hooks/logic.ts` holds the decision logic as pure functions; `logic.test.ts` (9) and `register.test.tsx` (5) run with `claude plugin test` | 14 mod tests pass |
+| M7 | Fixed | `jev-spike` mod deleted (its old log file stays, gitignored) | — |
+| L1 | Fixed | Host must be `127.0.0.1:<port>` or `localhost:<port>` | `test_l1_*`; live: 403 |
+| L2 | Fixed | Non-object bodies get 400 | `test_l2_*`; live: 400 |
+| L3 | Fixed | Missing/negative/over 1 MB `Content-Length` gets 400/413 at once | `test_l3_*`, `test_oversized_body_is_refused` |
+| — | Fixed (found while fixing) | The server answered 403 before reading the body, which sometimes reset the connection (a flaky test showed it); bodies are now always read first | `test_403_does_not_reset_the_connection` |
+| — | Fixed (found while fixing) | If a switch failed and putting the prompt back also failed, the error went unhandled; now the person is told to resend | mod test run |
+| L4 | Fixed | Turn events with an `agentId` (subagents) are ignored | code |
+| L5 | Fixed | The tier is remembered only when the session runs it (after a switch, or when it already matched) | code |
+| L6 | Fixed | `!heavy` alone works; `!heavyweight` is not an override | logic test L6 |
+| L7 | Documented | Mode stays global on purpose; `/jev` now says "applies to every session" | — |
+| L8 | Deferred | Log/cache retention belongs to the context-compiler project (DESIGN 6.2) | — |
+| L9 | Known limit | `$.prompt.submit` takes no `context`, so context other plugins attached can't be passed on a resend. Documented here; no workaround in the API | — |

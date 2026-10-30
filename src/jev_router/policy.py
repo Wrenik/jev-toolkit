@@ -6,6 +6,7 @@ logged with the raw probabilities so they can be tuned from real use.
 
 from __future__ import annotations
 
+import re
 from dataclasses import asdict, dataclass, field
 from typing import Any
 
@@ -65,6 +66,9 @@ class Decision:
     effort: str
     reason: str
     signals: dict[str, float] = field(default_factory=dict)
+    # False when the session runs a model the router doesn't manage (Fable,
+    # opusplan, a 1M-context variant...): the mod then only suggests.
+    manages_current: bool = True
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -133,12 +137,20 @@ SMALL_CONTEXT_TOKENS = 20_000
 CACHE_WARM_MS = 55 * 60 * 1000
 
 
+# Above this, Haiku is never chosen: Anthropic's docs say Haiku 5.5 costs more per
+# token on prompts over 100k tokens, and a smaller model's window may not fit.
+LIGHT_MAX_CONTEXT_TOKENS = 100_000
+
+# Only plain Haiku/Sonnet/Opus are managed. Anything else is left alone: Fable is
+# above Opus, opusplan switches by itself, and a "[1m]" variant holds more context
+# than the model it would be switched to.
+_MANAGED_MODEL = re.compile(r"^(?:claude-)?(haiku|sonnet|opus)(?:-[\d.-]+)?$")
+_TIER_BY_FAMILY = {target["model"]: tier for tier, target in DEFAULT_TIER_MODELS.items()}
+
+
 def tier_of_model(model: str | None) -> str | None:
-    name = (model or "").lower()
-    for tier, target in DEFAULT_TIER_MODELS.items():
-        if target["model"] in name:
-            return tier
-    return None
+    match = _MANAGED_MODEL.match((model or "").strip().lower())
+    return _TIER_BY_FAMILY.get(match.group(1)) if match else None
 
 
 def guard_step_down(
@@ -170,7 +182,13 @@ def route(
     verdict = judge.ask({"prompt": prompt}, QUESTIONS)
     s = signals_of(verdict)
     tier, reason = choose_tier(s, previous_tier)
-    current_tier = tier_of_model(current_model) or previous_tier
-    tier, reason = guard_step_down(tier, reason, current_tier, context_tokens, idle_ms)
+    managed = tier_of_model(current_model)
+    manages_current = current_model is None or managed is not None
+    tier, reason = guard_step_down(tier, reason, managed or previous_tier, context_tokens, idle_ms)
+    if tier == "light" and context_tokens is not None and context_tokens > LIGHT_MAX_CONTEXT_TOKENS:
+        tier, reason = "standard", f"{reason}, but context is ~{context_tokens:,} tokens: no Haiku above 100k"
+    if not manages_current:
+        reason = f"{reason} (running {current_model}, which the router doesn't manage: suggestion only)"
     target = tier_models[tier]
-    return Decision(tier, target["model"], effort_for(tier, target["effort"], s), reason, s), verdict
+    effort = effort_for(tier, target["effort"], s)
+    return Decision(tier, target["model"], effort, reason, s, manages_current), verdict

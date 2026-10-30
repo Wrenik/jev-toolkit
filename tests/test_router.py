@@ -72,7 +72,7 @@ def test_no_step_down_with_big_warm_context():
 
 
 def test_step_down_allowed_when_cache_cold_or_context_small():
-    for tokens, idle in [(BIG, COLD), (5_000, WARM), (None, None)]:
+    for tokens, idle in [(60_000, COLD), (5_000, WARM), (None, None)]:
         decision, _ = route(FakeJudge(light_responder), "rename cnt", "standard",
                             current_model="claude-sonnet-5-5", context_tokens=tokens, idle_ms=idle)
         assert decision.tier == "light", (tokens, idle)
@@ -96,6 +96,34 @@ def test_effort_is_high_for_sonnet_doing_real_coding():
 
     decision, _ = route(FakeJudge(coding), "fix the flaky retry in client.py")
     assert (decision.tier, decision.model, decision.effort) == ("standard", "sonnet", "high")
+
+
+@pytest.mark.parametrize("model, tier", [
+    ("claude-haiku-5-5", "light"), ("claude-sonnet-5-5", "standard"), ("claude-opus-5-5", "heavy"),
+    ("sonnet", "standard"), ("claude-opus-5", "heavy"),
+    ("claude-fable-5-1", None), ("fable", None), ("best", None), ("opusplan", None),
+    ("claude-opus-5-5[1m]", None), ("sonnet[1m]", None), ("", None), (None, None),
+])
+def test_tier_of_model_is_strict(model, tier):
+    from jev_router.policy import tier_of_model
+    assert tier_of_model(model) == tier
+
+
+def test_unmanaged_model_is_suggestion_only():
+    for model in ("claude-fable-5-1", "opusplan", "claude-opus-5-5[1m]"):
+        decision, _ = route(FakeJudge(light_responder), "rename", None,
+                            current_model=model, context_tokens=BIG, idle_ms=WARM)
+        assert decision.manages_current is False, model
+        assert "suggestion only" in decision.reason
+
+
+def test_no_haiku_above_100k_even_with_cold_cache():
+    decision, _ = route(FakeJudge(light_responder), "rename", None,
+                        current_model="claude-sonnet-5-5", context_tokens=BIG, idle_ms=COLD)
+    assert decision.tier == "standard" and "no Haiku above 100k" in decision.reason
+    decision, _ = route(FakeJudge(light_responder), "rename", None,
+                        current_model="claude-sonnet-5-5", context_tokens=60_000, idle_ms=COLD)
+    assert decision.tier == "light"
 
 
 def test_clip_keeps_head_and_tail():
@@ -158,3 +186,100 @@ def test_server_rejects_requests_without_header(server):
     with pytest.raises(urllib.error.HTTPError) as err:
         post(url, {"prompt": "x"}, header=False)
     assert err.value.code == 403
+
+
+# --- Bug report fixes (docs/BUG_REPORT_2026-10-30.md) ---
+
+def raw_request(url, data: bytes, headers: dict):
+    import socket
+    from urllib.parse import urlparse
+
+    u = urlparse(url)
+    s = socket.create_connection((u.hostname, u.port), timeout=3)
+    lines = [f"POST /route HTTP/1.1", f"Host: 127.0.0.1:{u.port}"] + [f"{k}: {v}" for k, v in headers.items()]
+    s.sendall(("\r\n".join(lines) + "\r\n\r\n").encode() + data)
+    try:
+        return s.recv(200).split(b"\r\n", 1)[0]
+    finally:
+        s.close()
+
+
+def test_l1_wrong_host_header_is_refused(server):
+    url = server(FakeJudge())
+    req = urllib.request.Request(url + "/health", headers={HEADER: "1", "Host": "attacker.example"})
+    with pytest.raises(urllib.error.HTTPError) as err:
+        urllib.request.urlopen(req, timeout=3)
+    assert err.value.code == 403
+
+
+def test_l2_non_object_body_is_a_400_not_a_crash(server):
+    url = server(FakeJudge())
+    req = urllib.request.Request(url + "/route", data=b'["x"]', method="POST", headers={HEADER: "1"})
+    with pytest.raises(urllib.error.HTTPError) as err:
+        urllib.request.urlopen(req, timeout=3)
+    assert err.value.code == 400
+
+
+def test_l3_negative_content_length_answers_fast(server):
+    url = server(FakeJudge())
+    status = raw_request(url, b"{}", {HEADER: "1", "Content-Length": "-1"})
+    assert b"400" in status
+
+
+def test_oversized_body_is_refused(server):
+    url = server(FakeJudge())
+    status = raw_request(url, b"", {HEADER: "1", "Content-Length": str(2_000_000)})
+    assert b"413" in status
+
+
+def test_403_does_not_reset_the_connection(server):
+    url = server(FakeJudge())
+    for _ in range(20):  # was flaky: the body was left unread before answering
+        with pytest.raises(urllib.error.HTTPError) as err:
+            post(url, {"prompt": "x" * 5000}, header=False)
+        assert err.value.code == 403
+
+
+def test_m4_health_reports_code_version_and_shutdown_works(server):
+    url = server(FakeJudge())
+    req = urllib.request.Request(url + "/health", headers={HEADER: "1"})
+    health = json.loads(urllib.request.urlopen(req, timeout=3).read())
+    assert len(health["code_version"]) == 12 and health["stale"] is False
+    req = urllib.request.Request(url + "/shutdown", data=b"{}", method="POST", headers={HEADER: "1"})
+    assert json.loads(urllib.request.urlopen(req, timeout=3).read())["ok"] is True
+
+
+def test_h2_secrets_never_reach_the_judge(server, tmp_path):
+    fake = FakeJudge()
+    url = server(fake)
+    secret = "sk-ant-api03-ABCDEFGHIJKLMNOPQRSTUVWXYZ012345"
+    post(url, {"prompt": f"use key {secret} and DB_PASSWORD=hunter2hunter2 please"})
+    sent = json.dumps(fake.calls[-1][0])
+    assert secret not in sent and "hunter2hunter2" not in sent
+    log = (tmp_path / "router.jsonl").read_text(encoding="utf-8")
+    assert '"anthropic_key"' in log and secret not in log
+
+
+@pytest.mark.parametrize("text, kind", [
+    ("-----BEGIN RSA PRIVATE KEY-----\nMIIabc\n-----END RSA PRIVATE KEY-----", "private_key"),
+    ("ghp_" + "a" * 36, "github_token"),
+    ("AKIAABCDEFGHIJKLMNOP", "aws_key_id"),
+    ("Authorization: Bearer abcdefghijklmnopqrstuvwxyz123", "bearer_token"),
+    ("postgres://admin:s3cretpass@db.local/app", "url_password"),
+    ("eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTYifQ.abcdefghijklmnop", "jwt"),
+    ('{"api_key": "abcdef123456"}', "assignment"),
+    ("OPENAI_API_KEY=sk-proj-abcdefghijklmnopqrstuvwxyz", "openai_key"),
+])
+def test_redact_catches_common_formats(text, kind):
+    from jev_router.redact import redact
+
+    cleaned, found = redact(text)
+    assert kind in found and "REDACTED" in cleaned
+
+
+def test_redact_leaves_ordinary_prompts_alone():
+    from jev_router.redact import redact
+
+    for text in ["fix the token parser in lexer.py", "rename password_hint to hint", "what is a secret santa?",
+                 "set timeout = 30 in config"]:
+        assert redact(text) == (text, [])

@@ -1,6 +1,14 @@
 {
   "name": "jev-router",
-  "version": "0.1.0",
-  "description": "Asks a judgement model (TypeSafe Jev) how big each prompt is and picks the Claude model for it.",
-  "author": { "name": "Henric" }
+  "version": "0.2.0",
+  "description": "Asks a judgement model (TypeSafe Jev) how big each prompt is and picks the Claude model and effort for it.",
+  "author": { "name": "Henric" },
+  "userConfig": {
+    "toolkitPath": {
+      "type": "string",
+      "title": "jev-toolkit folder",
+      "description": "Absolute path to your jev-toolkit checkout (the folder with pyproject.toml and .venv). Empty: the JEV_TOOLKIT environment variable is used.",
+      "default": ""
+    }
+  }
 }
