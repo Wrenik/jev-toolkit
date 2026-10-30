@@ -1,0 +1,8 @@
+.env
+.venv/
+__pycache__/
+*.egg-info/
+.pytest_cache/
+# Decision logs and caches can contain hashes of private prompts; keep them local.
+var/
+spikes/*.txt

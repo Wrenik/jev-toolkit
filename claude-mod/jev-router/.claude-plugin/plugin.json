@@ -1,0 +1,6 @@
+{
+  "name": "jev-router",
+  "version": "0.1.0",
+  "description": "Asks a judgement model (TypeSafe Jev) how big each prompt is and picks the Claude model for it.",
+  "author": { "name": "Henric" }
+}

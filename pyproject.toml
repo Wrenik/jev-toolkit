@@ -1,0 +1,25 @@
+[project]
+name = "jev-toolkit"
+version = "0.1.0"
+description = "A judgement-model layer (currently TypeSafe Jev) around generative LLMs: typed decisions, logged and swappable."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    # Pinned: the SDK is pre-1.0 and has changed question types between minor versions.
+    "typesafe-sdk==0.7.5",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["live: calls the real Jev API (costs a fraction of a cent; needs TYPESAFE_API_KEY)"]
+addopts = "-m 'not live'"
