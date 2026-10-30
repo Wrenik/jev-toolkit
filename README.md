@@ -2,7 +2,13 @@
 
 Small tools that put a **judgement model** next to a generative LLM. The LLM writes; the judgement model answers typed questions (yes/no, pick one, rate on a scale) with probabilities; ordinary code acts on those answers. The first judge supported is [TypeSafe Jev](https://docs.typesafe.ai).
 
-This is a personal learning project (IT security now, data science next) built in public. It is early, and this README says plainly what works and what doesn't.
+## About this project
+
+This is a personal learning project, built by an IT student (security now, data science next) to find out how a *judgement model* behaves when you put it next to a generative LLM. It is an experiment: I wanted to work out for myself where a model that returns typed answers with probabilities is useful, what breaks, and what it costs. Much of the code was written together with Claude Code, and the commit history and [bug report](docs/BUG_REPORT_2026-10-30.md) show the mistakes found along the way, not only the result.
+
+**None of the ideas here are original.** Model routing, typed outputs and LLM judges all exist already; see [Prior art](#prior-art). Mature tools such as RouteLLM, LiteLLM and Instructor are better choices if you need something reliable. What this repo offers is a small, readable, tested experiment with a swappable judge, and honest notes on what worked.
+
+It is early, and this README says plainly what works and what doesn't.
 
 ## Status
 
