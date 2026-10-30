@@ -8,7 +8,7 @@ This is a personal learning project (IT security now, data science next) built i
 
 | Part | State |
 |---|---|
-| `jev_core`: judge interface, Jev adapter, fake judge, cache, decision log | **Working, unit-tested offline.** Live call not yet run. |
+| `jev_core`: judge interface, Jev adapter, fake judge, cache, decision log | **Working.** Unit-tested offline; live calls to Jev work (the router makes them on every prompt), but there is no automated test against the live API. |
 | Model/effort router for Claude Code (`jev_router` + `claude-mod/jev-router`) | **Working in Claude Code desktop**, still being tuned. Asks Jev about each prompt (~0.3 s), switches model/effort in `auto` mode or only suggests in `advise` mode. It only steps *down* a tier when the context is small or the cache is cold, because a model switch throws away the prompt cache. Real coding work (a bug, a refactor across files) goes to Opus; small coding tasks stay on Sonnet; short follow-ups never step down but can step up. It never switches away from models it doesn't manage (Fable, opusplan, 1M variants), never drops a prompt sent mid-turn or holding `@mentions`, and redacts likely secrets before a prompt goes to the judge. Thresholds are first guesses. See [the bug report](docs/BUG_REPORT_2026-10-30.md). |
 | Context compiler, injection scanner, agent monitor, fact checker, source restriction | Designed in [docs/DESIGN.md](docs/DESIGN.md), not built. |
 
@@ -42,7 +42,28 @@ cp .env.example .env                                  # then paste your key into
 .venv/Scripts/python -m pytest                        # offline tests, no key needed
 ```
 
-No key? Set `JEV_JUDGE=fake` in `.env` and everything runs offline with a neutral fake judge.
+No key? Set `JEV_JUDGE=fake` in `.env` and everything runs offline with a neutral fake judge (`check` then reports the key as missing, which is expected). The `smoke` step needs a real key.
+
+## Install the Claude Code mod (`jev-router`)
+
+The mod needs Claude Code with mod support (a recent version; check with `claude plugin --help`) and a checkout of this repo with the Quick start done above (the mod starts the Python server from that checkout's `.venv`).
+
+Either install it from this repo's marketplace:
+
+```
+/plugin marketplace add <owner>/<repo>
+/plugin install jev-router --marketplace <owner>/<repo>
+```
+
+or load it straight from your clone (nothing to publish): add `claude-mod/jev-router` to `CLAUDE_CODE_PLUGIN_DIRS`.
+
+Then tell the mod where your checkout is, either with the `toolkitPath` option (`claude plugin configure jev-router`) or the environment variable `JEV_TOOLKIT`:
+
+```bash
+export JEV_TOOLKIT=/path/to/jev-toolkit     # PowerShell: $env:JEV_TOOLKIT = 'C:\path	o\jev-toolkit'
+```
+
+Until that is set, routing stays off. The mod starts in `advise` mode (it only suggests); `/jev` shows its state and lets you switch to `auto` or `off`. Remember the privacy note above: with the mod on, prompts go to TypeSafe (after secret redaction). Mod tests: `claude plugin test claude-mod/jev-router`.
 
 ## Using `jev_core`
 
@@ -79,6 +100,8 @@ src/jev_core/
   cache.py    SQLite cache keyed on judge, model version, state and questions
   log.py      one JSON line per call
   config.py   .env loading and the default judge stack
+claude-mod/jev-router/  the Claude Code mod (TypeScript hooks)
+.claude-plugin/marketplace.json  makes this repo installable as a plugin marketplace
 docs/DESIGN.md  design of all planned tools
 tests/          offline tests (HTTP mocked with the documented response shape)
 ```
