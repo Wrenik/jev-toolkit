@@ -52,6 +52,8 @@ class LoggingJudge:
             raise
         record.update(verdict.to_dict())
         record["cached"] = verdict.cached
+        # TypeSafe's own id for the call, so a line here can be matched to the console.
+        record["request_id"] = verdict.extra.get("request_id")
         record["cost_usd"] = verdict.cost_usd
         self._write(record)
         return verdict
