@@ -60,7 +60,7 @@ or load it straight from your clone (nothing to publish): add `claude-mod/jev-ro
 Then tell the mod where your checkout is, either with the `toolkitPath` option (`claude plugin configure jev-router`) or the environment variable `JEV_TOOLKIT`:
 
 ```bash
-export JEV_TOOLKIT=/path/to/jev-toolkit     # PowerShell: $env:JEV_TOOLKIT = 'C:\path	o\jev-toolkit'
+export JEV_TOOLKIT=/path/to/jev-toolkit     # PowerShell: $env:JEV_TOOLKIT = 'C:/path/to/jev-toolkit'
 ```
 
 Until that is set, routing stays off. The mod starts in `advise` mode (it only suggests); `/jev` shows its state and lets you switch to `auto` or `off`. Remember the privacy note above: with the mod on, prompts go to TypeSafe (after secret redaction). Mod tests: `claude plugin test claude-mod/jev-router`.
