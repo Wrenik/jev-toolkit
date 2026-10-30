@@ -123,6 +123,7 @@ export const register: Register = on => {
     const up = await isUp($)
     return {
       text: [
+        `running model: ${await $.session.model()} (what the next prompt is sent to)`,
         `jev-router mode: ${await getMode($)} (change: /jev mode off|advise|auto)`,
         `server: ${up ? 'up' : 'down'} at ${BASE}`,
         `effort switching: ${hasEffortCommand ? 'yes (/effort)' : 'no /effort command here, model only'}`,
