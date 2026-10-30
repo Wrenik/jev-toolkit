@@ -35,6 +35,10 @@ def clip(prompt: str) -> str:
     return prompt[:half] + "\n[... middle omitted ...]\n" + prompt[-half:]
 
 
+def _int(value: Any) -> int | None:
+    return int(value) if isinstance(value, (int, float)) and not isinstance(value, bool) else None
+
+
 def handle_route(judge: Judge, body: dict[str, Any], log_path: Path) -> dict[str, Any]:
     prompt = str(body.get("prompt", ""))
     previous = body.get("previous_tier")
@@ -46,6 +50,8 @@ def handle_route(judge: Judge, body: dict[str, Any], log_path: Path) -> dict[str
         "prompt_chars": len(prompt),
         "previous_tier": previous,
         "current_model": body.get("current_model"),
+        "context_tokens": _int(body.get("context_tokens")),
+        "idle_ms": _int(body.get("idle_ms")),
         "mode": body.get("mode"),
     }
     forced = body.get("forced_tier")
@@ -56,7 +62,14 @@ def handle_route(judge: Judge, body: dict[str, Any], log_path: Path) -> dict[str
             result = {"ok": True, "tier": forced, **target, "reason": "forced by user", "signals": {},
                       "judge_ms": 0, "cached": False, "cost_usd": 0.0}
         else:
-            decision, verdict = route(judge, clip(prompt), previous)
+            decision, verdict = route(
+                judge,
+                clip(prompt),
+                previous,
+                current_model=body.get("current_model"),
+                context_tokens=_int(body.get("context_tokens")),
+                idle_ms=_int(body.get("idle_ms")),
+            )
             result = {"ok": True, **decision.to_dict(), "judge_ms": verdict.latency_ms,
                       "cached": verdict.cached, "cost_usd": verdict.cost_usd}
     except JudgeError as err:

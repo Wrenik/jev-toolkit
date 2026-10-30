@@ -51,6 +51,34 @@ def test_route_maps_tier_to_model():
     assert decision.signals["mechanical"] == 0.9
 
 
+BIG = 150_000
+WARM = 60_000  # idle 1 min
+COLD = 70 * 60 * 1000  # idle 70 min
+
+
+def test_no_step_down_with_big_warm_context():
+    decision, _ = route(FakeJudge(light_responder), "rename cnt", "standard",
+                        current_model="claude-sonnet-5-5", context_tokens=BIG, idle_ms=WARM)
+    assert decision.tier == "standard" and "forfeit a warm cache" in decision.reason
+
+
+def test_step_down_allowed_when_cache_cold_or_context_small():
+    for tokens, idle in [(BIG, COLD), (5_000, WARM), (None, None)]:
+        decision, _ = route(FakeJudge(light_responder), "rename cnt", "standard",
+                            current_model="claude-sonnet-5-5", context_tokens=tokens, idle_ms=idle)
+        assert decision.tier == "light", (tokens, idle)
+
+
+def test_step_up_always_allowed():
+    def heavy(state, questions):
+        return {"complexity": RateAnswer(3.5, "large", 0.9, {}), "mechanical": YesNoAnswer(0.1),
+                "risk": PickAnswer("low", 0.9, {"none": 0.1, "low": 0.9, "high": 0.0})}
+
+    decision, _ = route(FakeJudge(heavy), "design a system", "light",
+                        current_model="claude-haiku-5-5", context_tokens=BIG, idle_ms=WARM)
+    assert decision.tier == "heavy"
+
+
 def test_clip_keeps_head_and_tail():
     text = "A" * 30_000 + "Z"
     clipped = clip(text)

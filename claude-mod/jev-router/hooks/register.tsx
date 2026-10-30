@@ -30,6 +30,8 @@ type Decision = {
 let previousTier: string | null = null
 let last: Decision | null = null
 let isStarting = false
+// When the last answer finished; the prompt cache lives about an hour from then.
+let lastTurnEnd: number | null = null
 let hasEffortCommand = false
 // Why the last prompt was or wasn't routed; shown by /jev.
 let lastSeen = 'no prompt seen since load'
@@ -72,11 +74,17 @@ async function ensureServer($: any): Promise<void> {
 }
 
 async function askRouter($: any, prompt: string, forcedTier: string | null, mode: Mode): Promise<Decision> {
+  // Context size and idle time let the server avoid costly step-downs: a model
+  // switch throws away the prompt cache, so with a big warm context it only goes up.
+  const usage = await $.session.usage()
+  const now = await $.clock.now()
   const body = JSON.stringify({
     prompt,
     forced_tier: forcedTier,
     previous_tier: previousTier,
     current_model: await $.session.model(),
+    context_tokens: usage?.context?.tokens ?? null,
+    idle_ms: lastTurnEnd === null ? null : now - lastTurnEnd,
     mode,
   })
   try {
@@ -131,6 +139,11 @@ export const register: Register = on => {
         `last prompt seen: ${lastSeen}`,
       ].join('\n'),
     }
+  })
+
+  on('turn.complete', async ($, e, next) => {
+    lastTurnEnd = await $.clock.now()
+    return next(e)
   })
 
   on('prompt.submit', async ($, e, next) => {

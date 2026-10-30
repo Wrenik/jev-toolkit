@@ -9,7 +9,7 @@ This is a personal learning project (IT security now, data science next) built i
 | Part | State |
 |---|---|
 | `jev_core`: judge interface, Jev adapter, fake judge, cache, decision log | **Working, unit-tested offline.** Live call not yet run. |
-| Model/effort router for Claude Code | Next. Spike done: a Claude Code mod can switch the main model for the *next* prompt and call a small model itself. |
+| Model/effort router for Claude Code (`jev_router` + `claude-mod/jev-router`) | **Working in Claude Code desktop**, still being tuned. Asks Jev about each prompt (~0.3 s), switches model/effort in `auto` mode or only suggests in `advise` mode. It only steps *down* a tier when the context is small or the cache is cold, because a model switch throws away the prompt cache. Thresholds are first guesses. |
 | Context compiler, injection scanner, agent monitor, fact checker, source restriction | Designed in [docs/DESIGN.md](docs/DESIGN.md), not built. |
 
 ## Why a judgement model

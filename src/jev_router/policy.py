@@ -91,15 +91,53 @@ def choose_tier(s: dict[str, float], previous_tier: str | None) -> tuple[str, st
     return tier, reason
 
 
+# Switching model mid-session forfeits the prompt cache: the whole context is
+# read again on the new model. Stepping DOWN to save money can therefore cost
+# more than it saves, so it is only allowed when that loss is small.
+SMALL_CONTEXT_TOKENS = 20_000
+# Assumed cache lifetime (the Claude Code prompt cache is up to 1 h); after this
+# much idle time the cache is cold and there is nothing left to lose.
+CACHE_WARM_MS = 55 * 60 * 1000
+
+
+def tier_of_model(model: str | None) -> str | None:
+    name = (model or "").lower()
+    for tier, target in DEFAULT_TIER_MODELS.items():
+        if target["model"] in name:
+            return tier
+    return None
+
+
+def guard_step_down(
+    tier: str, reason: str, current_tier: str | None, context_tokens: int | None, idle_ms: int | None
+) -> tuple[str, str]:
+    """Never step down when it would throw away a warm cache of a big context."""
+    if current_tier not in TIERS or TIERS.index(tier) >= TIERS.index(current_tier):
+        return tier, reason
+    if context_tokens is None or context_tokens < SMALL_CONTEXT_TOKENS:
+        return tier, reason
+    if idle_ms is not None and idle_ms > CACHE_WARM_MS:
+        return tier, f"{reason} (cache is cold, so switching costs nothing extra)"
+    return current_tier, (
+        f"{reason}, but staying on {current_tier}: switching would forfeit a warm cache of ~{context_tokens:,} tokens"
+    )
+
+
 def route(
     judge: Judge,
     prompt: str,
     previous_tier: str | None = None,
     tier_models: dict[str, dict[str, str]] = DEFAULT_TIER_MODELS,
+    *,
+    current_model: str | None = None,
+    context_tokens: int | None = None,
+    idle_ms: int | None = None,
 ) -> tuple[Decision, Verdict]:
     """Ask the judge about `prompt` and decide. Raises JudgeError (caller fails open)."""
     verdict = judge.ask({"prompt": prompt}, QUESTIONS)
     s = signals_of(verdict)
     tier, reason = choose_tier(s, previous_tier)
+    current_tier = tier_of_model(current_model) or previous_tier
+    tier, reason = guard_step_down(tier, reason, current_tier, context_tokens, idle_ms)
     target = tier_models[tier]
     return Decision(tier, target["model"], target["effort"], reason, s), verdict
