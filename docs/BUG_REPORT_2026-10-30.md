@@ -141,6 +141,7 @@ Fix: delete the `jev-spike` mod (planned once the router works, and it does).
 | L3 | Fixed | Missing/negative/over 1 MB `Content-Length` gets 400/413 at once | `test_l3_*`, `test_oversized_body_is_refused` |
 | — | Fixed (found while fixing) | The server answered 403 before reading the body, which sometimes reset the connection (a flaky test showed it); bodies are now always read first | `test_403_does_not_reset_the_connection` |
 | — | Fixed (found while fixing) | If a switch failed and putting the prompt back also failed, the error went unhandled; now the person is told to resend | mod test run |
+| — | Fixed (found in use, 16:05) | The mod repeated `/effort medium` on consecutive prompts: a plugin's own `$.command.run` skips its own `command.run` hooks, so the effort tracker never saw the mod's own switch. Now remembered in `switchAndResend` | mod test "an effort the mod set is remembered" |
 | L4 | Fixed | Turn events with an `agentId` (subagents) are ignored | code |
 | L5 | Fixed | The tier is remembered only when the session runs it (after a switch, or when it already matched) | code |
 | L6 | Fixed | `!heavy` alone works; `!heavyweight` is not an override | logic test L6 |

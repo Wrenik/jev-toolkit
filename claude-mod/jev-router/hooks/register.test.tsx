@@ -87,3 +87,15 @@ test('a server failure lets the prompt through (fail open)', async ($, on) => {
   expect(r.text).toBe('anything')
 })
 
+
+test('an effort the mod set is remembered: the next prompt does not set it again', async ($, on) => {
+  const posted = engine(on, HEAVY, { model: 'claude-opus-5-5' })
+  await $.session.start({ cwd: '/', surface: 'desktop', isInteractive: true })
+  await $.prompt.submit({ text: 'refactor the auth module', origin: { kind: 'composer' } } as any)
+  await new Promise(resolve => setTimeout(resolve, 50))
+  expect((posted as any).ran).toEqual(['/effort high'])
+  const r: any = await $.prompt.submit({ text: 'and the tests too', origin: { kind: 'composer' } } as any)
+  await new Promise(resolve => setTimeout(resolve, 50))
+  expect(r.drop).toBeUndefined()
+  expect((posted as any).ran).toEqual(['/effort high'])
+})

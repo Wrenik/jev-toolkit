@@ -123,7 +123,12 @@ async function askRouter($: any, prompt: string, forcedTier: string | null, mode
 async function switchAndResend($: any, d: Decision, text: string, setModel: boolean, setEffort: boolean): Promise<void> {
   try {
     if (setModel) await $.command.run({ command: 'model', args: d.model })
-    if (setEffort) await $.command.run({ command: 'effort', args: d.effort })
+    if (setEffort) {
+      await $.command.run({ command: 'effort', args: d.effort })
+      // A plugin's own $.command.run skips its own command.run hooks, so the
+      // /effort tracker never sees it: remember it here.
+      knownEffort = d.effort ?? knownEffort
+    }
     await $.prompt.submit({ text, asUser: true })
   } catch (err) {
     // Never lose the person's prompt: put it back in the box, or at least say so.
