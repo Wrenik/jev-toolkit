@@ -39,6 +39,14 @@ QUESTIONS = {
         "Is this a short follow-up to an ongoing task (a confirmation, a go-ahead, "
         "a small correction, or a question about what was just said) rather than new work?"
     ),
+    "coding": YesNo(
+        "Does this request ask to write, change, fix or debug program code or scripts "
+        "(not only to explain something or look something up)?"
+    ),
+    "multi_file": YesNo(
+        "Would doing this well involve understanding or changing several files, "
+        "components or systems that interact?"
+    ),
     "risk": Pick(
         "If this request is done carelessly, how bad is the damage?",
         {
@@ -69,26 +77,51 @@ def signals_of(v: Verdict) -> dict[str, float]:
         "deep": round(v["deep"].p_yes, 3),
         "mechanical": round(v["mechanical"].p_yes, 3),
         "followup": round(v["followup"].p_yes, 3),
+        "coding": round(v["coding"].p_yes, 3),
+        "multi_file": round(v["multi_file"].p_yes, 3),
         "risk_high": round(v["risk"].probabilities.get("high", 0.0), 3),
     }
 
 
-def choose_tier(s: dict[str, float], previous_tier: str | None) -> tuple[str, str]:
-    """Pure policy: signals -> (tier, reason)."""
-    if previous_tier in TIERS and s["followup"] >= 0.7 and s["complexity"] < 2.0:
-        return previous_tier, "follow-up to ongoing work: keep tier"
+def wanted_tier(s: dict[str, float]) -> tuple[str, str]:
+    """What this prompt needs on its own, ignoring what we were running before."""
+    # 0.5 means "can't tell" to the judge, so every threshold sits clearly above it.
+    coding = s.get("coding", 0.0) >= 0.6
+    multi_file = s.get("multi_file", 0.0) >= 0.6
     if s["risk_high"] >= 0.5:
         return "heavy", "high risk"
+    # Anthropic: Sonnet is for day-to-day coding, Opus for complex reasoning and for
+    # bugs in an existing codebase where edge cases matter. Real coding work that is
+    # not mechanical therefore goes up at lower thresholds than other work.
+    if coding and s["mechanical"] < 0.6 and (s["complexity"] >= 1.5 or s["deep"] >= 0.55 or multi_file):
+        return "heavy", "complex coding work: Opus rather than staying on Sonnet"
     if s["complexity"] >= 2.5 or s["deep"] >= 0.7:
         return "heavy", "complex or needs deep reasoning"
     if s["complexity"] < 1.0 and s["mechanical"] >= 0.6 and s["risk_high"] < 0.2:
-        tier, reason = "light", "small mechanical task"
-    else:
-        tier, reason = "standard", "ordinary task"
-    # Unsure judge: never step down from the tier we were already on.
-    if s["complexity_conf"] < 0.4 and previous_tier in TIERS and TIERS.index(previous_tier) > TIERS.index(tier):
-        return previous_tier, f"{reason}, but judge unsure: keep {previous_tier}"
+        return "light", "small mechanical task"
+    return "standard", "ordinary task"
+
+
+def choose_tier(s: dict[str, float], previous_tier: str | None) -> tuple[str, str]:
+    """Pure policy: signals -> (tier, reason)."""
+    tier, reason = wanted_tier(s)
+    if previous_tier in TIERS and TIERS.index(previous_tier) > TIERS.index(tier):
+        # Never step down on a short follow-up (it rides on the work before it)...
+        if s["followup"] >= 0.7 and s["complexity"] < 2.0:
+            return previous_tier, "follow-up to ongoing work: keep tier"
+        # ...nor when the judge is unsure.
+        if s["complexity_conf"] < 0.4:
+            return previous_tier, f"{reason}, but judge unsure: keep {previous_tier}"
+    # Stepping UP is always allowed, follow-up or not.
     return tier, reason
+
+
+def effort_for(tier: str, default: str, s: dict[str, float]) -> str:
+    # Anthropic: high effort is for work where verification matters, such as fixing a
+    # bug in an existing codebase. Sonnet doing real coding gets high instead of medium.
+    if tier == "standard" and s.get("coding", 0.0) >= 0.6 and s["complexity"] >= 1.0:
+        return "high"
+    return default
 
 
 # Switching model mid-session forfeits the prompt cache: the whole context is
@@ -140,4 +173,4 @@ def route(
     current_tier = tier_of_model(current_model) or previous_tier
     tier, reason = guard_step_down(tier, reason, current_tier, context_tokens, idle_ms)
     target = tier_models[tier]
-    return Decision(tier, target["model"], target["effort"], reason, s), verdict
+    return Decision(tier, target["model"], effort_for(tier, target["effort"], s), reason, s), verdict

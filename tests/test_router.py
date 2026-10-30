@@ -11,9 +11,9 @@ from jev_router import choose_tier, route
 from jev_router.server import HEADER, clip, make_handler
 
 
-def signals(complexity=1.5, conf=0.9, deep=0.1, mechanical=0.3, followup=0.1, risk_high=0.0):
-    return {"complexity": complexity, "complexity_conf": conf, "deep": deep,
-            "mechanical": mechanical, "followup": followup, "risk_high": risk_high}
+def signals(complexity=1.5, conf=0.9, deep=0.1, mechanical=0.3, followup=0.1, risk_high=0.0, coding=0.0, multi_file=0.0):
+    return {"complexity": complexity, "complexity_conf": conf, "deep": deep, "mechanical": mechanical,
+            "followup": followup, "risk_high": risk_high, "coding": coding, "multi_file": multi_file}
 
 
 @pytest.mark.parametrize(
@@ -31,6 +31,15 @@ def signals(complexity=1.5, conf=0.9, deep=0.1, mechanical=0.3, followup=0.1, ri
         # Unsure judge never steps down.
         (signals(complexity=0.2, mechanical=0.9, conf=0.3), "heavy", "heavy"),
         (signals(complexity=0.2, mechanical=0.9, conf=0.3), None, "light"),
+        # Real coding work goes to Opus at lower thresholds than other work.
+        (signals(complexity=1.6, coding=0.9), None, "heavy"),
+        (signals(complexity=1.0, deep=0.55, coding=0.9), None, "heavy"),
+        (signals(complexity=1.0, coding=0.9, multi_file=0.8), None, "heavy"),
+        (signals(complexity=1.6, coding=0.1), None, "standard"),  # same size, not coding
+        (signals(complexity=1.6, coding=0.9, mechanical=0.8), None, "standard"),  # mechanical edits stay cheap
+        # A follow-up may go UP; it just never goes down.
+        (signals(complexity=1.8, deep=0.55, coding=0.9, followup=0.9), "standard", "heavy"),
+        (signals(complexity=1.0, followup=0.9), "standard", "standard"),
     ],
 )
 def test_choose_tier(s, previous, tier):
@@ -77,6 +86,16 @@ def test_step_up_always_allowed():
     decision, _ = route(FakeJudge(heavy), "design a system", "light",
                         current_model="claude-haiku-5-5", context_tokens=BIG, idle_ms=WARM)
     assert decision.tier == "heavy"
+
+
+def test_effort_is_high_for_sonnet_doing_real_coding():
+    def coding(state, questions):
+        return {"complexity": RateAnswer(1.2, "small", 0.9, {}), "coding": YesNoAnswer(0.9),
+                "mechanical": YesNoAnswer(0.2),
+                "risk": PickAnswer("low", 0.9, {"none": 0.1, "low": 0.9, "high": 0.0})}
+
+    decision, _ = route(FakeJudge(coding), "fix the flaky retry in client.py")
+    assert (decision.tier, decision.model, decision.effort) == ("standard", "sonnet", "high")
 
 
 def test_clip_keeps_head_and_tail():
