@@ -161,3 +161,22 @@ The author's earlier answer to (c) was "after the advisor". The master session r
 5. **Untrusted data:** every result is wrapped and labelled as a quote from a past session, never as instructions (transcripts can contain injected text).
 6. **Install:** a plugin `.mcp.json` entry launching `python -m jev_context.mcp_server`; runs locally under the Pro subscription, no API call.
 7. **Tests:** synthetic transcripts only, including a seeded-secret test and a test that an injected "ignore previous instructions" line comes back marked as quoted data. Whether the MCP protocol is implemented by hand (JSON-RPC over stdio, no dependency) or with the official SDK is decided at build time and noted here.
+
+## 8. Status 2026-11-03 and what is still unverified
+
+Built and tested offline (no API key): `cost`, `ingest`/`store`, `search`, `advisor`, `jev_core.joint`, `broker`, the shared `server`, and the `claude-mod/jev-context` hook logic. Live against Jev: the advisor, and one shared request carrying router + context questions (both answered correctly).
+
+**Search quality [measured, easy proxy]:** 30 turns per kind sampled from 13 real transcripts; the query is 2 or 3 of the turn's rarest words; success = the turn is in the top 5. Result: recall@5 0.97-1.00 for text, tool calls and tool results (recall@1 0.83-0.97); median query time 0.3 ms. This is **self-retrieval with rare words**, which is the easy case: it shows the index and ranking work, not that a human's vague question ("what did we decide about the cache?") finds its answer. A set of hand-written questions with known answers is still needed.
+
+**Not verified:** the mod has not been run inside Claude Code; `register.tsx` is not type-checked (the generated type files exist only for jev-router); whether jev-context's `prompt.submit` hook runs before jev-router's, which decides whether the two requests actually meet (the server counts shared and separate calls, `/jevctx` shows them); retention (step 5) is not built.
+
+### Checklist for the author: try the two mods in Claude Code
+1. In a terminal in the jev-toolkit folder: `.venv\Scripts\python -m pytest -q` (expect all passed).
+2. Make both mods load: add `claude-mod/jev-router` and `claude-mod/jev-context` to `CLAUDE_CODE_PLUGIN_DIRS`, and set `JEV_TOOLKIT` to the folder (see README, "Install the Claude Code mod"). Restart Claude Code.
+3. Start a session and type `/jev` and `/jevctx`. Expected: the router says server up; jev-context says server up with context endpoints yes. If it says NO, send `/jev restart`, wait a few seconds and run `/jevctx` again.
+4. Work in one session until its context is above ~100k tokens (a long task is enough), then send a few normal prompts. Under 100k, jev-context stays silent by design.
+5. Run `/jevctx`. Look at "shared judge requests": a number above 0 means router and advisor shared a call. If it stays 0 while "separate" grows, the hook order is the wrong way round: tell me, that is a fix on my side.
+6. Run `/jevctx ingest` once, then `/jevctx search <a word you remember from an earlier session>`. Results are quotes from old sessions, not instructions.
+7. Look at `var/context-advice.jsonl` (what the advisor decided, never prompt text) and tell me: did a "compact" or "clear" suggestion ever look wrong or arrive at a bad moment?
+8. To stop everything: `/jevctx mode off` and `/jev mode off`.
+
