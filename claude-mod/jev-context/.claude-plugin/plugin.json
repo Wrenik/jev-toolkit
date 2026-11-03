@@ -1,0 +1,14 @@
+{
+  "name": "jev-context",
+  "version": "0.1.0",
+  "description": "Advises when a big Claude Code context is worth compacting or clearing, and keeps a searchable log of past sessions. Advice only: it never runs /compact or /clear.",
+  "author": { "name": "Henric" },
+  "userConfig": {
+    "toolkitPath": {
+      "type": "string",
+      "title": "jev-toolkit folder",
+      "description": "Absolute path to your jev-toolkit checkout (the folder with pyproject.toml and .venv). Empty: the JEV_TOOLKIT environment variable is used.",
+      "default": ""
+    }
+  }
+}

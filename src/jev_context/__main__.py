@@ -1,4 +1,4 @@
-"""Command line: python -m jev_context {ingest,search,get} ..."""
+"""Command line: python -m jev_context {serve,ingest,search,get} ..."""
 
 from __future__ import annotations
 
@@ -17,6 +17,8 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(prog="jev_context")
     ap.add_argument("--db", default=str(DEFAULT_DB))
     sub = ap.add_subparsers(dest="cmd", required=True)
+    p = sub.add_parser("serve", help="local server for the Claude Code mod")
+    p.add_argument("--port", type=int)
     p = sub.add_parser("ingest", help="read transcripts into the log (idempotent)")
     p.add_argument("--root", default=str(DEFAULT_ROOT))
     p = sub.add_parser("search", help="full-text search; prints short snippets")
@@ -30,6 +32,11 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("id")
     p.add_argument("--around", type=int, default=0)
     a = ap.parse_args(argv)
+    if a.cmd == "serve":
+        from .server import DEFAULT_PORT, serve
+
+        serve(a.port or DEFAULT_PORT)
+        return 0
     db = connect(a.db)
 
     if a.cmd == "ingest":
