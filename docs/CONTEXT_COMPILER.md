@@ -1,6 +1,6 @@
 # Context compiler, clear and long-term log (project 2)
 
-Status: **plan, awaiting approval** (2026-10-30). Phase 1 = research + measurement. Nothing here beyond `src/jev_context/measure.py` is built.
+Status: **in progress** (2026-11-03). Decisions a-d answered by the author (see end of section 7). Built and tested: `measure.py`, `cost.py` (step 1), `store.py` + `ingest.py` (step 2). Steps 3-5 not started.
 Legend: **[measured]** = computed from the author's own transcripts with `python -m jev_context.measure`; **[verified]** = stated in Anthropic's docs (code.claude.com prompt-caching and costs pages); **[assumed]** = my assumption, to be checked.
 
 ## 1. The problem in one paragraph
@@ -20,6 +20,29 @@ A Claude Code conversation carries its whole history as context. That history is
 | Built-in `/compact`, `idleCompaction` | LLM summary by Claude itself | Yes | n/a | The baseline we compare against; costs one large request when cold [verified]. |
 
 Take-aways: (1) non-LLM compaction of *tool output* exists and is mature (sqz, Headroom) — we should not rewrite it; (2) transcript → SQLite/FTS5 search exists many times over — our value is **redaction, tiering with measured thresholds, and the cost-aware decision**; (3) nobody found does the cold-vs-warm-vs-clear decision with a judge. Gaps in this survey: I did not read the source of any of these, and star counts / maintenance state were not checked.
+
+### 2.1 Leads from a second web survey (2026-11-03) — **unverified, not yet read at source**
+Passed on by another session; listed so they are not lost, with what each would change. None is relied on yet.
+
+| Lead | Claim (as reported) | What it would change here |
+|---|---|---|
+| [claude-mem on PyPI](https://pypi.org/project/claude-mem/) | Reads `~/.claude/projects` JSONL into SQLite FTS5; MCP tools `session_list`/`session_search`/`session_show` | Confirms the pattern; our tool names can follow the same three-step shape |
+| [memorex](https://github.com/mitre88/memorex) | FTS5 + BM25, decay scoring, hard token budgets, auto-injection | **Result token budget** and optional **recency decay** on search (plan step 3) |
+| context-memory (ErebusEnigma) | FTS5 with tuned PRAGMAs (WAL, 64 MB cache) | Try WAL + cache size in step 3, measure |
+| [claudecode-infinite-memory](https://www.remoteopenclaw.com/mcp/lchaoer/claudecode-infinite-memory) | Merges transcripts, memories and a knowledge base with merged ranking | Out of scope; noted |
+| sqlite-memory-mcp | BM25 plus optional vectors via sqlite-vec | Vectors only if measured recall@5 demands it |
+| [semantic-transcript-search](https://lobehub.com/en/mcp/ttrine-semantic-transcript-search) | Vector search, needs a running Qdrant | Heavier than FTS5; not planned |
+| yoavf ai-sessions-mcp | One MCP over several coding agents | Not needed |
+| [Agentic Context Management](https://arxiv.org/pdf/2607.23809) | Agent-initiated lossless compression; pays off only with a base model that sustains long tasks | Supports "reversible first"; no change |
+| [Coding-agent scaffold taxonomy](https://arxiv.org/pdf/2604.03515) | SWE-agent's LastNObservations keeps the prompt cache intact by pruning in batches | Any pruning we suggest must happen at stable points, never every turn (already in section 5) |
+| [morphllm write-up](https://www.morphllm.com/llm-context-management) | With caching on, keeping everything was often cheaper than summarising; capping every tool output at a stable size cut per-turn cost 38 % | Single vendor. Makes **"cap tool outputs"** a real option beside keep/compact/clear (see 4.5) |
+| [Hermes Agent docs](https://hermes-agent.nousresearch.com/docs/developer-guide/context-compression-and-caching) | Pluggable context engine, compressor replaceable | Keep the advisor behind an interface (it already goes through `Judge`) |
+| [Compresr](https://ycombinator.com/companies/compresr) | Commercial compression API + open-source proxy | Sends context to a third party: conflicts with the local-only stance; not used |
+| [compact cost analysis (dev.to)](https://dev.to/paul_irolla_6b5ae261d0224/claude-code-compact-what-it-costs-and-what-survives-2cfm), [when to compact (wmedia)](https://wmedia.es/en/tips/claude-code-when-to-compact-before-a-break), [cost model (dev.to)](https://dev.to/recca0120/does-a-long-claude-code-session-waste-tokens-a-cost-model-most-people-get-wrong-20f7), [compaction cascade (finisky)](https://finisky.github.io/en/claude-code-context-compaction) | Community posts: compaction is one big request so cost follows cache state; compact before a break while warm; clearing too often costs re-warming; Claude Code has a multi-layer compaction cascade | Consistent with the model in section 4. The cache-read/cache-write ratio is a possible churn signal (4.5). Read the cascade post before step 4 so we do not duplicate what Claude Code already does |
+
+These sources disagree with each other on the cache TTL (5 min vs 1 h). The Anthropic-docs facts from phase 1 (main conversation 1 h, subagents 5 min) stand until a doc says otherwise. "Reversible compaction first" is reported as Anthropic guidance; **not verified** against Anthropic's context-engineering docs.
+
+What this survey says about our position, stated plainly: indexing and recalling transcripts is well trodden (many tools, above and in section 2). The part we found nowhere is a cost-based **cold vs warm vs clear decision made with a judgement model**; everything else here is a re-implementation of known ideas, built for learning and for redaction/retention that the others lack.
 
 ## 3. What the data says [measured]
 
@@ -59,7 +82,7 @@ Per-turn saving after compacting is r·(C − S). Extra one-off cost of B over A
 - warm: Δ = o·S + w·S (the r·C read is paid by A too on its next turn, so ≈ cancels) 
 - cold: Δ = o·S + w·S as well (A pays w·C once, B pays w·C inside the compact call instead)
 
-so **break-even number of future turns n\* = (o + w)·S / (r·(C − S))**. With C = 263k (median), S = 20k, o=5, w=2, r=0.1: n\* = 140k / 24.3k ≈ **5.8 turns**. With C = 569k (p90): ≈ 2.6 turns. With C = 60k: ≈ 35 turns. So under these (assumed) weights compaction pays off only when context is large *and* the user will keep going; at small C leave it alone. The same formula says compacting a *cold* session buys nothing extra over letting the next message re-warm it, unless n > n\* — the only reason to compact cold is that n is large (or context quality/limit pressure, §4.4).
+so **break-even number of future turns n\* = 1 + (o + w)·S / (r·(C − S))**, where n counts the next turn too (corrected 2026-11-03: the first draft of this formula left out the `1 +`, which made every value below one turn too low; the numbers below are the corrected ones). With C = 263k (median), S = 20k, o=5, w=2, r=0.1: n\* = 1 + 140k / 24.3k ≈ **6.8 turns**. With C = 569k (p90): ≈ 3.6 turns. With C = 60k: ≈ 36 turns. So under these (assumed) weights compaction pays off only when context is large *and* the user will keep going; at small C leave it alone. The same formula says compacting a *cold* session buys nothing extra over letting the next message re-warm it, unless n > n\* — the only reason to compact cold is that n is large (or context quality/limit pressure, §4.4).
 
 Note the "wait" option has a time dimension: if the cache is warm and the user is idle, waiting costs nothing until the TTL, then A-cold applies. An early compact while warm vs a later one cold costs the same Δ here (a premise worth verifying: compact-while-cold may also re-create the cache for the prefix, making it slightly better than I model).
 
@@ -83,6 +106,11 @@ Everything Jev returns is advisory input to the formula; fail-open (judge down �
 
 ### 4.4 Non-cost reasons to compact
 Context limits and long-context accuracy (the 726k-token session is near the limit) — compacting early may be right even when n < n\*. Config switch: `max_context_tokens` above which the answer is "compact" regardless of arithmetic.
+
+### 4.5 Additions after the second survey (to build in steps 3-4)
+- **Cap tool outputs** becomes a fourth option next to keep / compact / clear: a cap at a *stable* size, applied going forward only (never rewriting the cached prefix). Our own number to check first: tool output is ~82 % of transcript text [measured], so a cap has the largest lever. The 38 % figure in the lead is one vendor's claim; we measure our own with the stored log (what share of tool-result characters sit above a cap of 8k / 16k / 32k).
+- **Churn signal:** cache writes divided by cache reads over the last N calls, computed from transcripts (plain code, no judge). A high ratio means the session keeps re-warming, which argues against clear and for keep. Measured value for the author's data: 3.1 % created vs 96.9 % read overall.
+- Both inputs are optional fields of `Situation`; unknown means "no effect", same fail-open rule as the judge answers.
 
 ## 5. Reducing context without an LLM
 Order of operations (cheapest first), all deterministic, applied by *us* only to the **log and to compaction input**, never by rewriting cached history in place (that would break the cache; Headroom makes the same point):
@@ -113,11 +141,23 @@ Disk arithmetic with the measured numbers: ~1.3 MB/day at the heavy end ⇒ ≈ 
 Smallest useful slice, in order, each with offline tests and one live run:
 1. **`jev_context.cost`** — the §4 arithmetic as pure functions (`break_even_turns`, `decide`), config for r/w/o, tests with the worked numbers above.
 2. **`jev_context.ingest` + `store`** — transcript JSONL → SQLite+FTS5, drop `api-request*`, redaction, idempotent by record uuid; tests with synthetic transcripts and seeded secrets; run on the author's 11 real sessions and report size, ingest time, FTS overhead.
-3. **`jev_context.search`** — CLI `python -m jev_context search "…"` plus `get_turn`; evaluation: 30 hand-made known-answer queries against real sessions → recall@5.
+3. **`jev_context.search`** — CLI `python -m jev_context search "…"` plus `get_turn`; **BM25 ranking, a hard cap on result tokens, optional recency decay, WAL pragmas (each measured, kept only if it helps)**; evaluation: 30 hand-made known-answer queries against real sessions → recall@5.
 4. **`jev_context.advisor`** — builds the 4 Jev questions through `jev_core.Judge` (with `FakeJudge` in tests), feeds `cost.decide`, logs every decision via the existing decision log; live run against Jev (`python -m jev_core smoke` first). **Advisory only** — shows "compact now / let it cool / clear" and the numbers; no auto-compact in this slice.
 5. **Tiering job** (`warm` only) and measured compression table; `cold` stays designed-not-enabled.
 6. **Later, separate approval:** mod integration (status line + `compact` button using `$.session.compact`), MCP tool for the LLM, auto-compact before TTL.
 
 Out of scope for the slice: local-LLM summariser, semantic/vector search, cold-tier deletion.
 
-Open decisions for the author: (a) accept the assumed r/w/o weights for now, calibrate later? (b) hot window 30 days and warm/cold boundary at 2 years OK as defaults? (c) MCP tool (LLM can search) in this slice or after the advisor? (d) use sqz/Headroom alongside later, or keep everything first-party? 
+Decisions answered 2026-11-03: (a) yes, weights configurable and marked as assumed; (b) yes, 30 days / 2 years, nothing deleted by default, cold tier disabled; (c) MCP search tool after the advisor; (d) first-party code only for now, sqz/Headroom documented as tools to run alongside.
+
+Original questions: (a) accept the assumed r/w/o weights for now, calibrate later? (b) hot window 30 days and warm/cold boundary at 2 years OK as defaults? (c) MCP tool (LLM can search) in this slice or after the advisor? (d) use sqz/Headroom alongside later, or keep everything first-party? 
+
+### 7.1 Proposed change (2026-11-03): MCP search moves into the first slice — **awaiting the author's confirmation**
+The author's earlier answer to (c) was "after the advisor". The master session reports a new requirement that the agent itself must be able to search the log on its own, which would make the MCP tool part of the first slice. Not built until the author confirms in chat. Proposed design, new step 3b after the CLI search:
+1. **Server:** stdio MCP server, own code (`jev_context.mcp_server`), read-only, opens the SQLite file read-only. Tools: `search(query, limit, since, project)`, `get_context(id, around=2)` (full text only here, capped), `list_sessions(limit)`.
+2. **Budget:** hard cap on result tokens (default ~1,500) and short snippets by default, so one search cannot blow up the context or cached prefix.
+3. **Description tells the model when to search:** exact look-back after a compact or clear, "what did we decide about X"; rarely and on purpose, not at every turn.
+4. **Secrets:** redacted at ingest (step 2), so no tool can return them; the server never reads transcripts directly.
+5. **Untrusted data:** every result is wrapped and labelled as a quote from a past session, never as instructions (transcripts can contain injected text).
+6. **Install:** a plugin `.mcp.json` entry launching `python -m jev_context.mcp_server`; runs locally under the Pro subscription, no API call.
+7. **Tests:** synthetic transcripts only, including a seeded-secret test and a test that an injected "ignore previous instructions" line comes back marked as quoted data. Whether the MCP protocol is implemented by hand (JSON-RPC over stdio, no dependency) or with the official SDK is decided at build time and noted here.
