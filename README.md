@@ -134,4 +134,4 @@ This is a learning project, so issues and suggestions are welcome, especially wh
 
 ## License
 
-To be decided before the repository is made public.
+[MIT](LICENSE). Copyright (c) 2026 Eric Ährlund.
