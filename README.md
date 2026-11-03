@@ -58,8 +58,8 @@ The mod needs Claude Code with mod support (a recent version; check with `claude
 Either install it from this repo's marketplace:
 
 ```
-/plugin marketplace add <owner>/<repo>
-/plugin install jev-router --marketplace <owner>/<repo>
+/plugin marketplace add Wrenik/jev-toolkit
+/plugin install jev-router --marketplace Wrenik/jev-toolkit
 ```
 
 or load it straight from your clone (nothing to publish): add `claude-mod/jev-router` to `CLAUDE_CODE_PLUGIN_DIRS`.
