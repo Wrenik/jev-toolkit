@@ -16,7 +16,8 @@ It is early, and this README says plainly what works and what doesn't.
 |---|---|
 | `jev_core`: judge interface, Jev adapter, fake judge, cache, decision log | **Working.** Unit-tested offline; live calls to Jev work (the router makes them on every prompt), but there is no automated test against the live API. |
 | Model/effort router for Claude Code (`jev_router` + `claude-mod/jev-router`) | **Working in Claude Code desktop**, still being tuned. Asks Jev about each prompt (~0.3 s), switches model/effort in `auto` mode or only suggests in `advise` mode. It only steps *down* a tier when the context is small or the cache is cold, because a model switch throws away the prompt cache. Real coding work (a bug, a refactor across files) goes to Opus; small coding tasks stay on Sonnet; short follow-ups never step down but can step up. It never switches away from models it doesn't manage (Fable, opusplan, 1M variants), never drops a prompt sent mid-turn or holding `@mentions`, and redacts likely secrets before a prompt goes to the judge. Thresholds are first guesses. See [the bug report](docs/BUG_REPORT_2026-10-30.md). |
-| Context compiler, injection scanner, agent monitor, fact checker, source restriction | Designed in [docs/DESIGN.md](docs/DESIGN.md), not built. |
+| Context compiler (`jev_context`) | **Research and measurement only.** [docs/CONTEXT_COMPILER.md](docs/CONTEXT_COMPILER.md) has the survey of existing tools, a cold-vs-warm cost model and a measurement script run on real transcripts (small sample, one user). The tool itself is not built. |
+| Injection scanner, agent monitor, fact checker, source restriction, assistant brain, living bots | Designed in [docs/DESIGN.md](docs/DESIGN.md), not built. Order and start prompts: [docs/ROADMAP.md](docs/ROADMAP.md). |
 
 ## Why a judgement model
 
@@ -126,6 +127,10 @@ Ideas this project is related to. No code from them is used.
 - [Instructor](https://github.com/567-labs/instructor) and [Outlines](https://github.com/dottxt-ai/outlines): structured, typed output *from generative LLMs*. Here the typed answers come from a separate judgement model, so the referee is not the writer.
 - [RouteLLM](https://github.com/lm-sys/RouteLLM): learned routing between a strong and a weak LLM. The router planned here instead asks a judge typed questions, logs each decision with probabilities, and runs inside Claude Code on a subscription.
 - [LiteLLM](https://github.com/BerriAI/litellm): one interface to many LLM providers. `jev_core` is the same idea at a much smaller scale, for judges rather than generators.
+
+## Contributing and feedback
+
+This is a learning project, so issues and suggestions are welcome, especially where something is wrong or an existing tool already does it better. Run `python -m pytest` before sending anything.
 
 ## License
 

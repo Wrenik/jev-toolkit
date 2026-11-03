@@ -18,15 +18,15 @@ Rules for every project: one at a time, tested before the next starts (DESIGN 3.
 
 ### Consistency with DESIGN.md
 The order matches DESIGN section 5 (tools 1–8). Differences, deliberately not edited in DESIGN.md:
-- DESIGN 5 lists an optional tool 9 (demo framework tying 3, 6, 1, 4 together). Not one of Henric's projects; kept here only as an optional idea after project 8.
-- DESIGN 6.2 leans towards "non-LLM reduction first, then a local model or Claude for the summary". Henric's wording is "check for existing no-cost tools first". Treated as the same step 1 of research; the roadmap makes the survey the first deliverable.
+- DESIGN 5 lists an optional tool 9 (demo framework tying 3, 6, 1, 4 together). Not one of the author's projects; kept here only as an optional idea after project 8.
+- DESIGN 6.2 leans towards "non-LLM reduction first, then a local model or Claude for the summary". The author's wording is "check for existing no-cost tools first". Treated as the same step 1 of research; the roadmap makes the survey the first deliverable.
 - DESIGN 7 proposes `packages/router/` etc. The real code lives in `jev_core`, `jev_router` and `claude-mod/jev-router`, and project 2 starts under a new package. Layout in DESIGN 7 is therefore out of date.
 - DESIGN 3 header says "Nothing here is built yet"; project 1 is now done (commit c5724b3).
 - DESIGN 6.4 mentions a Hugging Face incident "referred to in the notes"; it is unverified (see Cross-cutting).
 
 ## Common opening for every start prompt
 Each prompt below begins with this block (repeated in each, so it can be pasted alone):
-> Write all code, comments and README in English (Henric speaks Swedish to you in chat, repo files stay English). Read `docs/DESIGN.md` and `docs/ROADMAP.md` first. Add a "Prior art" section to the README with links to similar tools and what differs here. Write your own code, copy nothing. Start with a plan and ask Henric to approve it before building. Commit only your own paths; other sessions may work in the folder.
+> Write all code, comments and README in English (the author speaks Swedish in chat, repo files stay English). Read `docs/DESIGN.md` and `docs/ROADMAP.md` first. Add a "Prior art" section to the README with links to similar tools and what differs here. Write your own code, copy nothing. Start with a plan and ask the author to approve it before building. Commit only your own paths; other sessions may work in the folder.
 
 ---
 
@@ -60,9 +60,9 @@ Each prompt below begins with this block (repeated in each, so it can be pasted 
 
 **Start prompt**
 ```text
-Write all code, comments and README in English. Read docs/DESIGN.md (sections 2, 3, 4, 6.2, 8) and docs/ROADMAP.md first. Add a "Prior art" section to the README with links to similar tools and what differs here. Write your own code, copy nothing. Start with a plan and ask Henric to approve it before building.
+Write all code, comments and README in English. Read docs/DESIGN.md (sections 2, 3, 4, 6.2, 8) and docs/ROADMAP.md first. Add a "Prior art" section to the README with links to similar tools and what differs here. Write your own code, copy nothing. Start with a plan and ask the author to approve it before building.
 
-Project: context compiler and long-term log (roadmap project 2). Step 1 is research only: find existing tools that compress or compact LLM/Claude Code context without an LLM or without cost, and summarise what they do and where they fall short. Then design: Jev (via the Judge interface) decides whether compacting now is worth it versus letting a cold session re-warm uncompressed (prompt cache about 1 hour on a subscription's main conversation - verify). Also design a searchable full log (not context) the LLM can query on demand, with a retention plan where long-term logs are compressed much later (years); the thresholds must come from measured data (quality vs log size), so include a measurement plan. Work under a new package, not in jev_router. Put the plan in front of Henric before coding.
+Project: context compiler and long-term log (roadmap project 2). Step 1 is research only: find existing tools that compress or compact LLM/Claude Code context without an LLM or without cost, and summarise what they do and where they fall short. Then design: Jev (via the Judge interface) decides whether compacting now is worth it versus letting a cold session re-warm uncompressed (prompt cache about 1 hour on a subscription's main conversation - verify). Also design a searchable full log (not context) the LLM can query on demand, with a retention plan where long-term logs are compressed much later (years); the thresholds must come from measured data (quality vs log size), so include a measurement plan. Work under a new package, not in jev_router. Put the plan in front of the author before coding.
 ```
 
 ---
@@ -81,9 +81,9 @@ Project: context compiler and long-term log (roadmap project 2). Step 1 is resea
 
 **Start prompt**
 ```text
-Write all code, comments and README in English. Read docs/DESIGN.md (sections 2, 3, 4, 6.3) and docs/ROADMAP.md first. Add a "Prior art" section to the README with links to similar tools and what differs here. Write your own code, copy nothing. Start with a plan and ask Henric to approve it before building.
+Write all code, comments and README in English. Read docs/DESIGN.md (sections 2, 3, 4, 6.3) and docs/ROADMAP.md first. Add a "Prior art" section to the README with links to similar tools and what differs here. Write your own code, copy nothing. Start with a plan and ask the author to approve it before building.
 
-Project: Agent System Supervision part 1, outside threats (roadmap project 3). Build an injection scanner that checks text before it reaches the LLM: layer 1 deterministic (hidden/zero-width/bidi characters, encoded blobs, comments, instruction-like phrases), layer 2 a versioned local database of known threats with source per entry, layer 3 Jev through the Judge interface for inconclusive cases. It must stop and flag, fail closed for untrusted sources. Research public datasets and their licences first; write the evaluation attack set by hand and report false positives. Put the plan in front of Henric before coding.
+Project: Agent System Supervision part 1, outside threats (roadmap project 3). Build an injection scanner that checks text before it reaches the LLM: layer 1 deterministic (hidden/zero-width/bidi characters, encoded blobs, comments, instruction-like phrases), layer 2 a versioned local database of known threats with source per entry, layer 3 Jev through the Judge interface for inconclusive cases. It must stop and flag, fail closed for untrusted sources. Research public datasets and their licences first; write the evaluation attack set by hand and report false positives. Put the plan in front of the author before coding.
 ```
 
 ---
@@ -103,9 +103,9 @@ Project: Agent System Supervision part 1, outside threats (roadmap project 3). B
 
 **Start prompt**
 ```text
-Write all code, comments and README in English. Read docs/DESIGN.md (sections 2, 3, 4, 6.4) and docs/ROADMAP.md first. Add a "Prior art" section to the README with links to similar tools and what differs here. Write your own code, copy nothing. Start with a plan and ask Henric to approve it before building.
+Write all code, comments and README in English. Read docs/DESIGN.md (sections 2, 3, 4, 6.4) and docs/ROADMAP.md first. Add a "Prior art" section to the README with links to similar tools and what differs here. Write your own code, copy nothing. Start with a plan and ask the author to approve it before building.
 
-Project: Agent System Supervision part 2, inside threats (roadmap project 4). An outside logic agent (like Jev, via the Judge interface) supervises a Claude Code agent, borrowing ideas from firewalls and IDS/IPS: compare actions with instructions, flag abnormal tool use, flag changed instructions, flag exploitable tool use; alert, log, and kill only as a last resort. First verify what Claude Code hooks can do. Henric mentioned a Hugging Face incident: do NOT describe it as fact until you have read primary sources; report what you can and cannot confirm. Put the plan in front of Henric before coding.
+Project: Agent System Supervision part 2, inside threats (roadmap project 4). An outside logic agent (like Jev, via the Judge interface) supervises a Claude Code agent, borrowing ideas from firewalls and IDS/IPS: compare actions with instructions, flag abnormal tool use, flag changed instructions, flag exploitable tool use; alert, log, and kill only as a last resort. First verify what Claude Code hooks can do. the author mentioned a Hugging Face incident: do NOT describe it as fact until you have read primary sources; report what you can and cannot confirm. Put the plan in front of the author before coding.
 ```
 
 ---
@@ -126,9 +126,9 @@ Project: Agent System Supervision part 2, inside threats (roadmap project 4). An
 
 **Start prompt**
 ```text
-Write all code, comments and README in English. Read docs/DESIGN.md (sections 2, 3, 4, 6.5) and docs/ROADMAP.md first. Add a "Prior art" section to the README with links to similar tools and what differs here. Write your own code, copy nothing. Start with a plan and ask Henric to approve it before building.
+Write all code, comments and README in English. Read docs/DESIGN.md (sections 2, 3, 4, 6.5) and docs/ROADMAP.md first. Add a "Prior art" section to the README with links to similar tools and what differs here. Write your own code, copy nothing. Start with a plan and ask the author to approve it before building.
 
-Project: fact checker with hover citations (roadmap project 5). The LLM lists a source and a verbatim quote per claim; code checks the quote exists in the source; Jev (Judge interface) judges whether it supports the claim; source domains are compared with per-topic lists and unusual ones reported; unsupported claims are sent back for correction with a round limit. Output is HTML where hovering a claim shows source and passage. Put the plan in front of Henric before coding.
+Project: fact checker with hover citations (roadmap project 5). The LLM lists a source and a verbatim quote per claim; code checks the quote exists in the source; Jev (Judge interface) judges whether it supports the claim; source domains are compared with per-topic lists and unusual ones reported; unsupported claims are sent back for correction with a round limit. Output is HTML where hovering a claim shows source and passage. Put the plan in front of the author before coding.
 ```
 
 ---
@@ -146,9 +146,9 @@ Project: fact checker with hover citations (roadmap project 5). The LLM lists a 
 
 **Start prompt**
 ```text
-Write all code, comments and README in English. Read docs/DESIGN.md (sections 2, 3, 6.5, 6.6) and docs/ROADMAP.md first. Add a "Prior art" section to the README with links to similar tools and what differs here. Write your own code, copy nothing. Start with a plan and ask Henric to approve it before building.
+Write all code, comments and README in English. Read docs/DESIGN.md (sections 2, 3, 6.5, 6.6) and docs/ROADMAP.md first. Add a "Prior art" section to the README with links to similar tools and what differs here. Write your own code, copy nothing. Start with a plan and ask the author to approve it before building.
 
-Project: source restriction (roadmap project 6), built on the fact checker from project 5. Add a human-readable, versioned allowlist policy (e.g. employer documents, one country's legislation). Enforce it before the model sees retrieval results and after it answers; an answer citing an unapproved source fails and the LLM must rewrite. Every rejection must say which rule failed. Put the plan in front of Henric before coding.
+Project: source restriction (roadmap project 6), built on the fact checker from project 5. Add a human-readable, versioned allowlist policy (e.g. employer documents, one country's legislation). Enforce it before the model sees retrieval results and after it answers; an answer citing an unapproved source fails and the LLM must rewrite. Every rejection must say which rule failed. Put the plan in front of the author before coding.
 ```
 
 ---
@@ -167,9 +167,9 @@ Project: source restriction (roadmap project 6), built on the fact checker from 
 
 **Start prompt**
 ```text
-Write all code, comments and README in English. Read docs/DESIGN.md (sections 2, 3, 6.7) and docs/ROADMAP.md first. Add a "Prior art" section to the README with links to similar tools and what differs here. Write your own code, copy nothing. Start with a plan and ask Henric to approve it before building.
+Write all code, comments and README in English. Read docs/DESIGN.md (sections 2, 3, 6.7) and docs/ROADMAP.md first. Add a "Prior art" section to the README with links to similar tools and what differs here. Write your own code, copy nothing. Start with a plan and ask the author to approve it before building.
 
-Project: assistant brain (roadmap project 7), a large project done on a day of its own. Calendar, reminders and rules are plain logic; Jev (Judge interface) decides priority, escalation and what to do now; the LLM only writes text. Step 1 is a design document only: scope, parts, data and privacy handling, and a thin first vertical slice. No code before Henric approves the design.
+Project: assistant brain (roadmap project 7), a large project done on a day of its own. Calendar, reminders and rules are plain logic; Jev (Judge interface) decides priority, escalation and what to do now; the LLM only writes text. Step 1 is a design document only: scope, parts, data and privacy handling, and a thin first vertical slice. No code before the author approves the design.
 ```
 
 ---
@@ -190,9 +190,9 @@ Project: assistant brain (roadmap project 7), a large project done on a day of i
 
 **Start prompt**
 ```text
-Write all code, comments and README in English. Read docs/DESIGN.md (sections 2, 3, 6.8) and docs/ROADMAP.md first. Add a "Prior art" section to the README with links to similar tools and what differs here (interactive-fiction and agent-simulation frameworks, SillyTavern extensions). Write your own code, copy nothing. Start with a plan and ask Henric to approve it before building.
+Write all code, comments and README in English. Read docs/DESIGN.md (sections 2, 3, 6.8) and docs/ROADMAP.md first. Add a "Prior art" section to the README with links to similar tools and what differs here (interactive-fiction and agent-simulation frameworks, SillyTavern extensions). Write your own code, copy nothing. Start with a plan and ask the author to approve it before building.
 
-Project: living bots for SillyTavern (roadmap project 8). A rule-based world with rooms and sub-rooms, perception rules (see, converse, hear a shout), schedules and routines, seeded per-character randomness, life events and goals; Jev (Judge interface) picks among actions and judges dialogue; the LLM is used almost only when talking with the user and for backstory. First milestone: the café scene (counter and tables as sub-rooms). Step 1 is a design document and a SillyTavern integration check; get Henric's approval before any code.
+Project: living bots for SillyTavern (roadmap project 8). A rule-based world with rooms and sub-rooms, perception rules (see, converse, hear a shout), schedules and routines, seeded per-character randomness, life events and goals; Jev (Judge interface) picks among actions and judges dialogue; the LLM is used almost only when talking with the user and for backstory. First milestone: the café scene (counter and tables as sub-rooms). Step 1 is a design document and a SillyTavern integration check; get the author's approval before any code.
 ```
 
 ---

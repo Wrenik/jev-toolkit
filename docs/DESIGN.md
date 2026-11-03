@@ -60,7 +60,7 @@ Tools must work with a **Claude Pro/subscription session, not metered API tokens
 
 ## 5. Build order
 
-Henric's order, one at a time, each tested before the next:
+The author's order, one at a time, each tested before the next:
 
 | # | Tool | Depends on |
 |---|---|---|

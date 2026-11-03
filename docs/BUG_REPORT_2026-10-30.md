@@ -80,7 +80,7 @@ The Python server is a long-lived process; editing `src/jev_router` doesn't reac
 Fix: `/jev restart`, and a version or code hash in `/health` that the mod compares with the code on disk.
 
 ### M5 — Not portable
-`TOOLKIT` and `PYTHON` are hard-coded Windows paths (`C:/Users/Henric/...`, `.venv/Scripts/python.exe`). Anyone installing from GitHub gets a mod that never starts the server.
+`TOOLKIT` and `PYTHON` are hard-coded Windows paths (a `C:/Users/<name>/...` checkout path and `.venv/Scripts/python.exe`). Anyone installing from GitHub gets a mod that never starts the server.
 
 Fix: `userConfig` for the toolkit path, and pick `Scripts/python.exe` or `bin/python` by platform.
 

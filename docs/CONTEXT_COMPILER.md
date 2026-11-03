@@ -1,11 +1,11 @@
 # Context compiler, clear and long-term log (project 2)
 
 Status: **plan, awaiting approval** (2026-10-30). Phase 1 = research + measurement. Nothing here beyond `src/jev_context/measure.py` is built.
-Legend: **[measured]** = computed from Henric's own transcripts with `python -m jev_context.measure`; **[verified]** = stated in Anthropic's docs (code.claude.com prompt-caching and costs pages); **[assumed]** = my assumption, to be checked.
+Legend: **[measured]** = computed from the author's own transcripts with `python -m jev_context.measure`; **[verified]** = stated in Anthropic's docs (code.claude.com prompt-caching and costs pages); **[assumed]** = my assumption, to be checked.
 
 ## 1. The problem in one paragraph
 
-A Claude Code conversation carries its whole history as context. That history is cached; when the cache is cold (main conversation: 1 h after the last call, subagents 5 min [verified]) the next message re-reads the entire context at cache-write price. Henric's contexts are large, so a cold restart is expensive; but compacting also costs a request, and clearing loses information. Question: **at a given moment, which of "do nothing", "compact now", "clear and rely on a log" is cheapest, without losing what matters?** Separately: keep a complete, searchable log outside the context for exact look-back, and keep that log from filling the disk over years.
+A Claude Code conversation carries its whole history as context. That history is cached; when the cache is cold (main conversation: 1 h after the last call, subagents 5 min [verified]) the next message re-reads the entire context at cache-write price. The author's contexts are large, so a cold restart is expensive; but compacting also costs a request, and clearing loses information. Question: **at a given moment, which of "do nothing", "compact now", "clear and rely on a log" is cheapest, without losing what matters?** Separately: keep a complete, searchable log outside the context for exact look-back, and keep that log from filling the disk over years.
 
 ## 2. Prior art (research done 2026-10-30; licences read from each repo's page, not audited)
 
@@ -112,7 +112,7 @@ Disk arithmetic with the measured numbers: ~1.3 MB/day at the heavy end ⇒ ≈ 
 
 Smallest useful slice, in order, each with offline tests and one live run:
 1. **`jev_context.cost`** — the §4 arithmetic as pure functions (`break_even_turns`, `decide`), config for r/w/o, tests with the worked numbers above.
-2. **`jev_context.ingest` + `store`** — transcript JSONL → SQLite+FTS5, drop `api-request*`, redaction, idempotent by record uuid; tests with synthetic transcripts and seeded secrets; run on Henric's 11 real sessions and report size, ingest time, FTS overhead.
+2. **`jev_context.ingest` + `store`** — transcript JSONL → SQLite+FTS5, drop `api-request*`, redaction, idempotent by record uuid; tests with synthetic transcripts and seeded secrets; run on the author's 11 real sessions and report size, ingest time, FTS overhead.
 3. **`jev_context.search`** — CLI `python -m jev_context search "…"` plus `get_turn`; evaluation: 30 hand-made known-answer queries against real sessions → recall@5.
 4. **`jev_context.advisor`** — builds the 4 Jev questions through `jev_core.Judge` (with `FakeJudge` in tests), feeds `cost.decide`, logs every decision via the existing decision log; live run against Jev (`python -m jev_core smoke` first). **Advisory only** — shows "compact now / let it cool / clear" and the numbers; no auto-compact in this slice.
 5. **Tiering job** (`warm` only) and measured compression table; `cold` stays designed-not-enabled.
@@ -120,4 +120,4 @@ Smallest useful slice, in order, each with offline tests and one live run:
 
 Out of scope for the slice: local-LLM summariser, semantic/vector search, cold-tier deletion.
 
-Open decisions for Henric: (a) accept the assumed r/w/o weights for now, calibrate later? (b) hot window 30 days and warm/cold boundary at 2 years OK as defaults? (c) MCP tool (LLM can search) in this slice or after the advisor? (d) use sqz/Headroom alongside later, or keep everything first-party? 
+Open decisions for the author: (a) accept the assumed r/w/o weights for now, calibrate later? (b) hot window 30 days and warm/cold boundary at 2 years OK as defaults? (c) MCP tool (LLM can search) in this slice or after the advisor? (d) use sqz/Headroom alongside later, or keep everything first-party? 
