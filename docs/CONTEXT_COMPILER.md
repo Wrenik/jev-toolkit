@@ -152,7 +152,7 @@ Decisions answered 2026-11-03: (a) yes, weights configurable and marked as assum
 
 Original questions: (a) accept the assumed r/w/o weights for now, calibrate later? (b) hot window 30 days and warm/cold boundary at 2 years OK as defaults? (c) MCP tool (LLM can search) in this slice or after the advisor? (d) use sqz/Headroom alongside later, or keep everything first-party? 
 
-### 7.1 Proposed change (2026-11-03): MCP search moves into the first slice — **awaiting the author's confirmation**
+### 7.1 Design for the MCP search tool (proposal of 2026-11-03 to move it into the first slice was **declined by the author**: it stays after the advisor, as originally decided)
 The author's earlier answer to (c) was "after the advisor". The master session reports a new requirement that the agent itself must be able to search the log on its own, which would make the MCP tool part of the first slice. Not built until the author confirms in chat. Proposed design, new step 3b after the CLI search:
 1. **Server:** stdio MCP server, own code (`jev_context.mcp_server`), read-only, opens the SQLite file read-only. Tools: `search(query, limit, since, project)`, `get_context(id, around=2)` (full text only here, capped), `list_sessions(limit)`.
 2. **Budget:** hard cap on result tokens (default ~1,500) and short snippets by default, so one search cannot blow up the context or cached prefix.
