@@ -1,12 +1,19 @@
 {
   "name": "jev-toolkit",
   "description": "Claude Code mods built on a judgement model (TypeSafe Jev).",
-  "owner": { "name": "Henric" },
+  "owner": {
+    "name": "Henric"
+  },
   "plugins": [
     {
       "name": "jev-router",
       "source": "./claude-mod/jev-router",
       "description": "Asks a judgement model (TypeSafe Jev) how big each prompt is and picks the Claude model and effort for it."
+    },
+    {
+      "name": "jev-context",
+      "source": "./claude-mod/jev-context",
+      "description": "Advises when a big context is worth compacting or clearing, and searches a log of past sessions. Advice only; shares one judge request with jev-router when both are installed."
     }
   ]
 }
